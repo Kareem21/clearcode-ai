@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { ClearCodeViewProvider } from '../providers/clearCodeViewProvider';
 import { MicroDecisionCard } from '../types';
+import { SourceVerifier } from '../verification/sourceVerifier';
 import { EditorWriter } from './editorWriter';
 import { LLMClient } from './llmClient';
 
@@ -77,6 +78,13 @@ export class StreamEngine {
           abortSignal
         );
 
+        // Verify citations against canonical documentation specs
+        const verifiedCitations = SourceVerifier.processStepCitations(
+          step.citations,
+          step.code,
+          step.title
+        );
+
         // Build and dispatch decision card to webview (collapsed by default)
         const card: MicroDecisionCard = {
           id: `step-${step.stepNumber}-${Date.now()}`,
@@ -85,7 +93,7 @@ export class StreamEngine {
           lineRange,
           rationale: step.rationale,
           codeSnippet: step.code,
-          citations: step.citations,
+          citations: verifiedCitations,
           isExpanded: false
         };
 

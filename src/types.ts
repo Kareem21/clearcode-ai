@@ -1,5 +1,7 @@
 export type SourceType = 'official' | 'github' | 'stackoverflow' | 'community';
 
+export type VerificationStatus = 'verified' | 'unverified_model';
+
 export interface Citation {
   id: string;
   sourceType: SourceType;
@@ -7,6 +9,8 @@ export interface Citation {
   url: string;
   excerpt: string;
   highlight?: string;
+  verificationStatus?: VerificationStatus;
+  verificationDetails?: string;
 }
 
 export interface MicroDecisionCard {

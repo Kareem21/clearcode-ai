@@ -391,6 +391,34 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     .badge-github { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
     .badge-stackoverflow { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
     .badge-community { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .badge-verified {
+      background: rgba(34, 197, 94, 0.16);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .badge-unverified {
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .card-verified-tag {
+      font-size: 10px;
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.08);
+      padding: 4px 7px;
+      border-radius: 3px;
+      border-left: 2px solid #22c55e;
+    }
+
+    .card-unverified-tag {
+      font-size: 10px;
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.08);
+      padding: 4px 7px;
+      border-radius: 3px;
+      border-left: 2px solid #f59e0b;
+    }
 
     .card-actions-col {
       display: flex;
@@ -791,14 +819,31 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       const headerTitle = card.stepNumber + '. ' + card.title;
 
       let sourceBadgesHtml = '';
+      let hasVerified = false;
+      let hasUnverified = false;
+
       if (card.citations && card.citations.length > 0) {
         sourceBadgesHtml = card.citations.map((c) => {
+          if (c.verificationStatus === 'verified') {
+            hasVerified = true;
+            return '<span class="source-badge badge-verified" title="Verified against canonical official docs">Verified Docs</span>';
+          } else if (c.verificationStatus === 'unverified_model') {
+            hasUnverified = true;
+            return '<span class="source-badge badge-unverified" title="Pattern generated from AI model internal knowledge">Model Knowledge</span>';
+          }
           const badgeClass = 'badge-' + c.sourceType;
           const label = c.sourceType === 'official' ? 'Docs' :
                         c.sourceType === 'github' ? 'GitHub' :
                         c.sourceType === 'stackoverflow' ? 'SO' : 'Community';
           return \`<span class="source-badge \${badgeClass}">\${label}</span>\`;
         }).join('');
+      }
+
+      let verificationSnippetHtml = '';
+      if (hasUnverified) {
+        verificationSnippetHtml = '<div class="card-unverified-tag">AI Model Pattern (Not in official docs)</div>';
+      } else if (hasVerified) {
+        verificationSnippetHtml = '<div class="card-verified-tag">Canonical official documentation verified</div>';
       }
 
       cardDiv.innerHTML = \`
@@ -817,6 +862,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         </div>
         <div class="card-body">
           <div class="rationale-text">\${escapeHtml(card.rationale || '')}</div>
+          \${verificationSnippetHtml}
           <button class="btn-open-middle">Open Full Inspection View in Middle Pane ↗</button>
         </div>
       \`;

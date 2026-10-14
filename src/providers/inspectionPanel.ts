@@ -86,15 +86,28 @@ export class InspectionPanel {
     if (card.citations && card.citations.length > 0) {
       citationsHtml = card.citations
         .map((cit) => {
-          const badgeClass = `badge-${cit.sourceType}`;
-          const badgeLabel =
-            cit.sourceType === 'official'
-              ? 'Official Documentation'
-              : cit.sourceType === 'github'
-              ? 'GitHub Issue'
-              : cit.sourceType === 'stackoverflow'
-              ? 'Stack Overflow'
-              : 'Community Discussion';
+          const isVerified = cit.verificationStatus === 'verified';
+          const isUnverifiedModel = cit.verificationStatus === 'unverified_model';
+
+          const statusBadge = isVerified
+            ? '<span class="source-badge badge-verified">Verified Official Docs</span>'
+            : isUnverifiedModel
+            ? '<span class="source-badge badge-unverified">AI Model Knowledge</span>'
+            : `<span class="source-badge badge-${cit.sourceType}">${
+                cit.sourceType === 'official' ? 'Official Documentation' : 'Reference'
+              }</span>`;
+
+          const verificationNote = isVerified
+            ? `<div class="verification-note verified">
+                 <div class="verification-note-title">Verified Specification</div>
+                 <div>Guaranteed verbatim extract from canonical official documentation.</div>
+               </div>`
+            : isUnverifiedModel
+            ? `<div class="verification-note unverified">
+                 <div class="verification-note-title">Source Verification Notice</div>
+                 <div>This micro-decision pattern was generated from the AI model internal pre-training weights and does not correspond to an official indexed API specification. Review this pattern according to your project standards before merging.</div>
+               </div>`
+            : '';
 
           let excerpt = escapeHtml(cit.excerpt || '');
           if (cit.highlight) {
@@ -105,17 +118,25 @@ export class InspectionPanel {
             );
           }
 
+          const linkoutText = isVerified
+            ? 'Open Official Documentation ↗'
+            : isUnverifiedModel
+            ? 'Search Discussions & Issues ↗'
+            : 'Open in Browser ↗';
+
           return `
-            <div class="citation-card">
+            <div class="citation-card ${isVerified ? 'card-status-verified' : 'card-status-unverified'}">
               <div class="citation-top">
-                <span class="source-badge ${badgeClass}">${badgeLabel}</span>
+                ${statusBadge}
                 <span class="citation-name">${escapeHtml(cit.sourceName || '')}</span>
               </div>
-              <div class="excerpt-box">${excerpt}</div>
+              ${verificationNote}
+              <div class="excerpt-box ${isUnverifiedModel ? 'model-knowledge-box' : ''}">
+                ${excerpt}
+              </div>
               <div class="linkout-row">
                 <button class="btn-linkout" data-url="${escapeHtml(cit.url || '')}">
-                  <span>Open in Browser</span>
-                  <span>↗</span>
+                  <span>${linkoutText}</span>
                 </button>
               </div>
             </div>
@@ -308,6 +329,57 @@ export class InspectionPanel {
     .badge-github { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
     .badge-stackoverflow { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
     .badge-community { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .badge-verified {
+      background: rgba(34, 197, 94, 0.16);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .badge-unverified {
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .card-status-verified {
+      border-left: 3px solid #22c55e !important;
+    }
+
+    .card-status-unverified {
+      border-left: 3px solid #f59e0b !important;
+    }
+
+    .verification-note {
+      font-size: 11.5px;
+      line-height: 1.5;
+      padding: 8px 12px;
+      border-radius: 4px;
+    }
+
+    .verification-note.verified {
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      color: #86efac;
+    }
+
+    .verification-note.unverified {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+    }
+
+    .verification-note-title {
+      font-weight: 700;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .model-knowledge-box {
+      border-left-color: #f59e0b !important;
+      background: rgba(245, 158, 11, 0.04) !important;
+      font-style: italic;
+    }
 
     .citation-name {
       font-size: 13px;
