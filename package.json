@@ -1,0 +1,101 @@
+{
+  "name": "clearcode-ai",
+  "displayName": "ClearCode AI",
+  "description": "Real-time transparent code generation with live documentation citations and micro-decision rationales for TypeScript & Playwright.",
+  "version": "0.1.0",
+  "publisher": "clearcode",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Testing",
+    "AI",
+    "Education"
+  ],
+  "keywords": [
+    "playwright",
+    "typescript",
+    "ai",
+    "testing",
+    "citations",
+    "transparent-coding"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:clearcode.citationsView"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clearcode-sidebar",
+          "title": "ClearCode AI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "clearcode-sidebar": [
+        {
+          "type": "webview",
+          "id": "clearcode.citationsView",
+          "name": "ClearCode: Citations & Rationales"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "clearcode.generatePlaywright",
+        "title": "ClearCode: Generate Playwright Test with Live Citations",
+        "category": "ClearCode AI"
+      },
+      {
+        "command": "clearcode.clearCitations",
+        "title": "ClearCode: Clear Current Citations",
+        "category": "ClearCode AI"
+      },
+      {
+        "command": "clearcode.cancelGeneration",
+        "title": "ClearCode: Cancel Active Generation",
+        "category": "ClearCode AI"
+      },
+      {
+        "command": "clearcode.setApiKey",
+        "title": "ClearCode: Set LLM API Key",
+        "category": "ClearCode AI"
+      }
+    ],
+    "configuration": {
+      "title": "ClearCode AI",
+      "properties": {
+        "clearcode.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key for LLM provider (OpenAI / Anthropic / Gemini)."
+        },
+        "clearcode.provider": {
+          "type": "string",
+          "enum": ["demo", "openai", "anthropic", "gemini"],
+          "default": "demo",
+          "description": "LLM provider to use for generation (default: demo simulation for immediate testing)."
+        },
+        "clearcode.model": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Model identifier to use."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.4"
+  }
+}
