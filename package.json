@@ -76,13 +76,13 @@
         },
         "clearcode.provider": {
           "type": "string",
-          "enum": ["demo", "openai", "anthropic", "gemini"],
-          "default": "demo",
-          "description": "LLM provider to use for generation (default: demo simulation for immediate testing)."
+          "enum": ["gemini", "openai", "anthropic", "demo"],
+          "default": "gemini",
+          "description": "LLM provider to use for generation (default: gemini)."
         },
         "clearcode.model": {
           "type": "string",
-          "default": "gpt-4o",
+          "default": "gemini-3.8-flash",
           "description": "Model identifier to use."
         }
       }
