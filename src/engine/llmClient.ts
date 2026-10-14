@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { PLAYWRIGHT_MANIFEST } from '../manifest/playwrightManifest';
@@ -14,29 +15,15 @@ export interface StreamStepPayload {
 
 export class LLMClient {
   /**
-   * Validates whether the prompt is within our strict TypeScript + Playwright scope.
+   * Validates whether the prompt is allowed.
+   * Open to any coding prompt.
    */
-  public isScopeAllowed(prompt: string): { allowed: boolean; reason?: string } {
-    const p = prompt.toLowerCase();
-    const disallowedKeywords = [
-      'python', 'django', 'flask', 'ruby', 'rails', 'java', 'spring',
-      'c#', '.net', 'php', 'rust', 'golang', 'cypress', 'selenium', 'puppeteer'
-    ];
-
-    for (const keyword of disallowedKeywords) {
-      if (p.includes(keyword)) {
-        return {
-          allowed: false,
-          reason: `ClearCode AI is strictly tailored for TypeScript & Playwright. Requests involving "${keyword}" are out of scope for this version.`
-        };
-      }
-    }
-
+  public isScopeAllowed(_prompt: string): { allowed: boolean; reason?: string } {
     return { allowed: true };
   }
 
   /**
-   * Streams generation step-by-step.
+   * Streams generation step-by-step using live Gemini 3.8 Flash.
    */
   public async *streamSteps(
     topic: string,
@@ -49,20 +36,19 @@ export class LLMClient {
     const apiKey =
       config.get<string>('apiKey') ||
       env['GEMINI_API_KEY'] ||
-      env['OPENAI_API_KEY'] ||
       process.env.GEMINI_API_KEY ||
       '';
     const model =
       config.get<string>('model') ||
       env['CLEARCODE_MODEL'] ||
-      (provider === 'gemini' ? 'gemini-3.8-flash' : 'gpt-4o');
+      'gemini-3.8-flash';
 
-    if (provider === 'demo' || !apiKey) {
+    if (provider === 'demo') {
       yield* this._streamDemoManifest(abortSignal);
       return;
     }
 
-    if (provider === 'gemini') {
+    if (provider === 'gemini' || apiKey) {
       yield* this._streamFromGemini(apiKey, model, topic, abortSignal, editorContext);
       return;
     }
@@ -82,10 +68,10 @@ export class LLMClient {
     abortSignal: AbortSignal,
     editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
-    const systemPrompt = `You are ClearCode AI, a Senior Playwright & TypeScript test engineer.
-Your task is to generate clean, robust, deterministic Playwright test code.
-CRITICAL REQUIREMENT: For each logical step, you MUST determine the architectural decision and documentation citation FIRST, then generate the code line(s) conditioned on that decision.
-Output ONLY a sequence of NDJSON lines. Each line must be a JSON object conforming to this schema:
+    const systemPrompt = `You are ClearCode AI, a Senior Software & TypeScript Engineer.
+Your task is to write clean, modern, reliable, and production-ready code directly answering the user's prompt.
+CRITICAL REQUIREMENT: For each logical step or micro-decision in your implementation, determine the architectural decision and documentation citation FIRST, then generate the code line(s) conditioned on that decision.
+Output ONLY a sequence of NDJSON lines, one JSON object per line. Each line must be a JSON object conforming to this schema:
 {
   "stepNumber": number,
   "title": string,
@@ -102,11 +88,11 @@ Output ONLY a sequence of NDJSON lines. Each line must be a JSON object conformi
     }
   ]
 }
-Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational prose. Output ONLY valid NDJSON lines. Focus exclusively on TypeScript and Playwright.`;
+Do NOT output markdown code fences (\`\`\`json). Do NOT output conversational prose. Output ONLY valid JSON objects.`;
 
     const userPromptText = editorContext?.content?.trim()
-      ? `Active File Context (${editorContext.fileName}):\n\`\`\`typescript\n${editorContext.content.slice(0, 4000)}\n\`\`\`\n\nUser Request: ${topic}\nCondition the test code and citations on this file.`
-      : `Generate a Playwright test suite in TypeScript for: ${topic}`;
+      ? `Active File Context (${editorContext.fileName}):\n\`\`\`typescript\n${editorContext.content.slice(0, 4000)}\n\`\`\`\n\nUser Request: ${topic}\nGenerate the requested code and micro-decision citations.`
+      : `User Request: ${topic}\nGenerate the requested code and micro-decision citations.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
@@ -173,22 +159,21 @@ Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational
 
           if (textPart) {
             textAccumulator += textPart;
-            // Parse completed NDJSON lines from accumulated text
-            const result = extractAndYieldSteps(textAccumulator, emittedStepNumbers);
+            const result = extractJsonObjects(textAccumulator, emittedStepNumbers);
             textAccumulator = result.remaining;
             for (const step of result.steps) {
               yield step;
             }
           }
         } catch {
-          // Incomplete SSE chunk
+          // Partial SSE chunk
         }
       }
     }
 
-    // Flush any remaining line
+    // Flush any remaining text
     if (textAccumulator.trim()) {
-      const remainingResult = extractAndYieldSteps(textAccumulator, emittedStepNumbers);
+      const remainingResult = extractJsonObjects(textAccumulator, emittedStepNumbers);
       for (const step of remainingResult.steps) {
         yield step;
       }
@@ -202,9 +187,13 @@ Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational
     abortSignal: AbortSignal,
     editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
-    const systemPrompt = `You are ClearCode AI, a Senior Playwright & TypeScript test engineer.
+    const systemPrompt = `You are ClearCode AI, a Senior Software & TypeScript Engineer.
 Output ONLY a sequence of NDJSON lines conforming to schema:
 {"stepNumber": number, "title": string, "rationale": string, "code": string, "citations": [{"id": string, "sourceType": "official"|"github"|"stackoverflow"|"community", "sourceName": string, "url": string, "excerpt": string, "highlight": string}]}`;
+
+    const userPromptText = editorContext?.content?.trim()
+      ? `Active File (${editorContext.fileName}):\n${editorContext.content.slice(0, 3000)}\n\nPrompt: ${topic}`
+      : topic;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -216,7 +205,7 @@ Output ONLY a sequence of NDJSON lines conforming to schema:
         model,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Generate a Playwright test in TypeScript for: ${topic}` }
+          { role: 'user', content: userPromptText }
         ],
         stream: true
       }),
@@ -252,7 +241,7 @@ Output ONLY a sequence of NDJSON lines conforming to schema:
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
             textAccumulator += content;
-            const result = extractAndYieldSteps(textAccumulator, emittedStepNumbers);
+            const result = extractJsonObjects(textAccumulator, emittedStepNumbers);
             textAccumulator = result.remaining;
             for (const step of result.steps) {
               yield step;
@@ -310,29 +299,79 @@ Output ONLY a sequence of NDJSON lines conforming to schema:
   }
 }
 
-function extractAndYieldSteps(
+/**
+ * Robust brace-balanced JSON extractor.
+ * Parses JSON step objects even if surrounded by markdown code blocks or multi-line formatting.
+ */
+function extractJsonObjects(
   text: string,
   emitted: Set<number>
 ): { steps: StreamStepPayload[]; remaining: string } {
   const steps: StreamStepPayload[] = [];
-  const lines = text.split('\n');
-  const remaining = lines.pop() || '';
+  let remaining = text;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    // Strip markdown wrappers if any
-    const cleanLine = trimmed.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-    if (!cleanLine) continue;
+  while (true) {
+    const startIdx = remaining.indexOf('{');
+    if (startIdx === -1) break;
 
-    try {
-      const obj = JSON.parse(cleanLine);
-      if (obj.stepNumber && obj.title && obj.code && !emitted.has(obj.stepNumber)) {
-        emitted.add(obj.stepNumber);
-        steps.push(obj as StreamStepPayload);
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let endIdx = -1;
+
+    for (let i = startIdx; i < remaining.length; i++) {
+      const char = remaining[i];
+      if (escape) {
+        escape = false;
+        continue;
       }
-    } catch {
-      // Incomplete line
+      if (char === '\\') {
+        escape = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (char === '{') depth++;
+        else if (char === '}') {
+          depth--;
+          if (depth === 0) {
+            endIdx = i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (endIdx !== -1) {
+      const candidateStr = remaining.slice(startIdx, endIdx + 1);
+      try {
+        const obj = JSON.parse(candidateStr);
+        if (
+          obj &&
+          typeof obj.stepNumber === 'number' &&
+          (obj.title || obj.code) &&
+          !emitted.has(obj.stepNumber)
+        ) {
+          emitted.add(obj.stepNumber);
+          steps.push({
+            stepNumber: obj.stepNumber,
+            title: obj.title || `Step ${obj.stepNumber}`,
+            rationale: obj.rationale || '',
+            code: obj.code || '',
+            citations: Array.isArray(obj.citations) ? obj.citations : []
+          });
+        }
+      } catch {
+        // Not a valid JSON object yet
+      }
+      remaining = remaining.slice(endIdx + 1);
+    } else {
+      // Incomplete object, keep from startIdx for next incoming chunk
+      remaining = remaining.slice(startIdx);
+      break;
     }
   }
 
@@ -341,11 +380,21 @@ function extractAndYieldSteps(
 
 function loadEnvFile(): Record<string, string> {
   const envMap: Record<string, string> = {};
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) return envMap;
+  const candidates: string[] = [
+    path.join(os.homedir(), '.clearcode_env'),
+    path.join(__dirname, '../../.env'),
+    path.join(process.cwd(), '.env'),
+    '/Users/kareemyoussef/Desktop/clearcode/.env'
+  ];
 
-  for (const folder of workspaceFolders) {
-    const envPath = path.join(folder.uri.fsPath, '.env');
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    for (const folder of workspaceFolders) {
+      candidates.push(path.join(folder.uri.fsPath, '.env'));
+    }
+  }
+
+  for (const envPath of candidates) {
     if (fs.existsSync(envPath)) {
       try {
         const content = fs.readFileSync(envPath, 'utf8');
@@ -356,12 +405,14 @@ function loadEnvFile(): Record<string, string> {
             if (eq !== -1) {
               const key = trimmed.slice(0, eq).trim();
               const val = trimmed.slice(eq + 1).trim();
-              envMap[key] = val;
+              if (!envMap[key]) {
+                envMap[key] = val;
+              }
             }
           }
         }
       } catch {
-        // Ignore file read error
+        // Ignore read errors
       }
     }
   }

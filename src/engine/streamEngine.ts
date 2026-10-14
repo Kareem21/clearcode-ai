@@ -34,21 +34,12 @@ export class StreamEngine {
     }
 
     const topic = userTopic || await vscode.window.showInputBox({
-      prompt: 'Enter Playwright test scenario to generate',
-      placeHolder: 'e.g. User Authentication & Dashboard Verification',
-      value: 'User Authentication & Dashboard Verification'
+      prompt: 'Enter prompt or scenario to generate',
+      placeHolder: 'e.g. Write a TypeScript function, component, or Playwright test',
+      value: ''
     });
 
     if (!topic) {
-      return;
-    }
-
-    // Strict Scope Guard: Reject out-of-scope non-TypeScript / non-Playwright requests
-    const scopeCheck = this._llmClient.isScopeAllowed(topic);
-    if (!scopeCheck.allowed) {
-      vscode.window.showErrorMessage(
-        scopeCheck.reason || 'ClearCode AI is strictly tailored for TypeScript & Playwright.'
-      );
       return;
     }
 
@@ -57,7 +48,7 @@ export class StreamEngine {
     const abortSignal = this._activeAbortController.signal;
 
     // Status bar update
-    this._statusBarItem.text = `$(sync~spin) [ClearCode] | Generating & Verifying | Playwright`;
+    this._statusBarItem.text = `$(sync~spin) [ClearCode] | Generating & Verifying`;
     this._statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
 
     try {
@@ -105,18 +96,18 @@ export class StreamEngine {
       await this._editorWriter.finalizeBlock(editor);
       this._viewProvider.completeSession();
 
-      this._statusBarItem.text = `$(check) [ClearCode] | Verified | Playwright (TS)`;
+      this._statusBarItem.text = `$(check) [ClearCode] | Verified`;
       this._statusBarItem.backgroundColor = undefined;
-      vscode.window.showInformationMessage('ClearCode AI: Playwright test generated with verified citations.');
+      vscode.window.showInformationMessage('ClearCode AI: Code generated with verified citations.');
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (abortSignal.aborted || errorMsg.includes('cancel') || errorMsg.includes('Abort')) {
         this._viewProvider.cancelSession();
-        this._statusBarItem.text = `$(x) [ClearCode] | Cancelled | Playwright`;
+        this._statusBarItem.text = `$(x) [ClearCode] | Cancelled`;
         vscode.window.showInformationMessage('Generation cancelled.');
       } else {
         this._viewProvider.errorSession(errorMsg);
-        this._statusBarItem.text = `$(error) [ClearCode] | Error | Playwright`;
+        this._statusBarItem.text = `$(error) [ClearCode] | Error`;
         vscode.window.showErrorMessage(`ClearCode Generation Error: ${errorMsg}`);
       }
       this._statusBarItem.backgroundColor = undefined;
@@ -124,7 +115,7 @@ export class StreamEngine {
       this._isBusy = false;
       this._activeAbortController = undefined;
       setTimeout(() => {
-        this._statusBarItem.text = `$(verified) [ClearCode] | Ready | Playwright (TS)`;
+        this._statusBarItem.text = `$(verified) [ClearCode] | Ready`;
       }, 5000);
     }
   }
