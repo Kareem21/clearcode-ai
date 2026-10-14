@@ -10,18 +10,22 @@ export class InspectionPanel {
   private _disposables: vscode.Disposable[] = [];
 
   public static createOrShow(extensionUri: vscode.Uri, card: MicroDecisionCard) {
+    const targetColumn = vscode.window.activeTextEditor
+      ? vscode.ViewColumn.Beside
+      : vscode.ViewColumn.One;
+
     // If we already have a panel, show it and update content
     if (InspectionPanel.currentPanel) {
-      InspectionPanel.currentPanel._panel.reveal(vscode.ViewColumn.One);
+      InspectionPanel.currentPanel._panel.reveal(targetColumn);
       InspectionPanel.currentPanel.update(card);
       return;
     }
 
-    // Otherwise, create a new panel in the main middle editor pane (ViewColumn.One)
+    // Otherwise, create a new panel in the editor area beside the active editor
     const panel = vscode.window.createWebviewPanel(
       InspectionPanel.viewType,
       `Inspect: ${card.title}`,
-      vscode.ViewColumn.One,
+      targetColumn,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
