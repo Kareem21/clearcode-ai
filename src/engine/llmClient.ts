@@ -40,7 +40,8 @@ export class LLMClient {
    */
   public async *streamSteps(
     topic: string,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
+    editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
     const env = loadEnvFile();
     const config = vscode.workspace.getConfiguration('clearcode');
@@ -62,12 +63,12 @@ export class LLMClient {
     }
 
     if (provider === 'gemini') {
-      yield* this._streamFromGemini(apiKey, model, topic, abortSignal);
+      yield* this._streamFromGemini(apiKey, model, topic, abortSignal, editorContext);
       return;
     }
 
     if (provider === 'openai') {
-      yield* this._streamFromOpenAI(apiKey, model, topic, abortSignal);
+      yield* this._streamFromOpenAI(apiKey, model, topic, abortSignal, editorContext);
       return;
     }
 
@@ -78,7 +79,8 @@ export class LLMClient {
     apiKey: string,
     model: string,
     topic: string,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
+    editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
     const systemPrompt = `You are ClearCode AI, a Senior Playwright & TypeScript test engineer.
 Your task is to generate clean, robust, deterministic Playwright test code.
@@ -102,6 +104,10 @@ Output ONLY a sequence of NDJSON lines. Each line must be a JSON object conformi
 }
 Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational prose. Output ONLY valid NDJSON lines. Focus exclusively on TypeScript and Playwright.`;
 
+    const userPromptText = editorContext?.content?.trim()
+      ? `Active File Context (${editorContext.fileName}):\n\`\`\`typescript\n${editorContext.content.slice(0, 4000)}\n\`\`\`\n\nUser Request: ${topic}\nCondition the test code and citations on this file.`
+      : `Generate a Playwright test suite in TypeScript for: ${topic}`;
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
     const body = {
@@ -110,7 +116,7 @@ Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational
       },
       contents: [
         {
-          parts: [{ text: `Generate a Playwright test suite in TypeScript for: ${topic}` }]
+          parts: [{ text: userPromptText }]
         }
       ],
       generationConfig: {
@@ -193,7 +199,8 @@ Do NOT output markdown code blocks (no \`\`\`json). Do NOT output conversational
     apiKey: string,
     model: string,
     topic: string,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
+    editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
     const systemPrompt = `You are ClearCode AI, a Senior Playwright & TypeScript test engineer.
 Output ONLY a sequence of NDJSON lines conforming to schema:

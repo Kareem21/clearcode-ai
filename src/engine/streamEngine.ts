@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ClearCodeViewProvider } from '../providers/clearCodeViewProvider';
 import { MicroDecisionCard } from '../types';
@@ -63,11 +64,17 @@ export class StreamEngine {
       // 1. Focus or create target editor
       const editor = await this._editorWriter.ensureActiveEditor();
 
+      // Extract active editor context (file name & contents)
+      const editorContext = {
+        fileName: path.basename(editor.document.fileName),
+        content: editor.document.getText()
+      };
+
       // 2. Clear previous session & start new session in Webview (Per-generation lifecycle)
       this._viewProvider.startSession(topic);
 
       // 3. Stream each step sequentially
-      for await (const step of this._llmClient.streamSteps(topic, abortSignal)) {
+      for await (const step of this._llmClient.streamSteps(topic, abortSignal, editorContext)) {
         if (abortSignal.aborted) {
           throw new Error('Cancelled');
         }

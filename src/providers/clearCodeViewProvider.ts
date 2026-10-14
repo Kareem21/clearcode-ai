@@ -17,7 +17,8 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     private readonly _extensionUri: vscode.Uri,
     private readonly _onCancelRequested: () => void,
     private readonly _onClearRequested: () => void,
-    private readonly _onStartDemoRequested: (topic?: string) => void
+    private readonly _onStartDemoRequested: (topic?: string) => void,
+    private readonly _onSubmitPromptRequested: (prompt: string) => void
   ) {}
 
   public resolveWebviewView(
@@ -55,6 +56,11 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         case 'startDemoGeneration':
           this._onStartDemoRequested(data.topic);
           break;
+        case 'submitUserPrompt':
+          if (data.prompt) {
+            this._onSubmitPromptRequested(data.prompt);
+          }
+          break;
         case 'webviewReady':
           if (this._currentSession) {
             this._view?.webview.postMessage({
@@ -68,8 +74,20 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
               } as ExtensionToWebviewMessage);
             }
           }
+          // Send current active editor context if any
+          if (vscode.window.activeTextEditor) {
+            const fileName = vscode.window.activeTextEditor.document.fileName.split('/').pop();
+            this.updateActiveContext(fileName);
+          }
           break;
       }
+    });
+  }
+
+  public updateActiveContext(fileName?: string) {
+    this.postMessage({
+      command: 'updateActiveContext',
+      fileName
     });
   }
 
@@ -412,7 +430,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       transform: rotate(180deg);
     }
 
-    /* Inline Collapsible Body (collapsed by default) */
+    /* Inline Collapsible Body */
     .card-body {
       display: none;
       padding: 10px;
@@ -449,7 +467,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       border-color: var(--accent-blue);
     }
 
-    /* Footer Action */
+    /* Footer & Prompt Input Area */
     .footer-panel {
       flex-shrink: 0;
       padding-top: 8px;
@@ -457,14 +475,101 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       margin-top: 8px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .btn-clear {
       width: 100%;
-      padding: 6px 0;
+      padding: 5px 0;
       background: var(--btn-bg);
       text-align: center;
+      font-size: 11px;
+    }
+
+    .prompt-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .context-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 7px;
+      border-radius: 4px;
+      width: fit-content;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .prompt-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 8px;
+      transition: border-color 0.15s;
+    }
+
+    .prompt-box:focus-within {
+      border-color: var(--accent-blue);
+    }
+
+    .prompt-textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.45;
+      resize: none;
+      min-height: 42px;
+      max-height: 120px;
+    }
+
+    .prompt-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .prompt-actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .prompt-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .btn-submit-prompt {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+
+    .btn-submit-prompt:hover {
+      background: #0ea5e9;
     }
 
     /* Empty state */
@@ -499,13 +604,35 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
 
   <div id="cardsContainer" class="cards-container">
     <div id="emptyState" class="empty-state">
-      <p>No active generation session.<br/>Trigger a generation to stream Playwright code and live citations.</p>
-      <button id="startDemoBtn" class="btn" style="margin-top: 6px; border-color: var(--accent-blue);">Start Playwright Test Demo</button>
+      <p>No active generation session.<br/>Type your prompt below to stream Playwright code and live citations.</p>
     </div>
   </div>
 
   <div class="footer-panel">
     <button id="clearBtn" class="btn btn-clear">Clear Current Citations</button>
+
+    <!-- Prompt Area right below Clear Current Citations -->
+    <div class="prompt-container">
+      <div id="activeContextPill" class="context-pill" style="display: none;">
+        <span>📎 Context:</span>
+        <span id="contextFileName">No active file</span>
+      </div>
+      <div class="prompt-box">
+        <textarea
+          id="promptInput"
+          class="prompt-textarea"
+          placeholder="Ask ClearCode or enter Playwright test scenario to generate..."
+          rows="2"
+        ></textarea>
+        <div class="prompt-actions-row">
+          <span class="prompt-hint">↵ to generate</span>
+          <button id="submitPromptBtn" class="btn-submit-prompt">
+            <span>Generate</span>
+            <span>↵</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script nonce="${nonce}">
@@ -515,12 +642,38 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     const statusIndicatorEl = document.getElementById('statusIndicator');
     const cancelBtn = document.getElementById('cancelBtn');
     const clearBtn = document.getElementById('clearBtn');
-    const startDemoBtn = document.getElementById('startDemoBtn');
     const cardsContainer = document.getElementById('cardsContainer');
     const emptyState = document.getElementById('emptyState');
 
+    const promptInput = document.getElementById('promptInput');
+    const submitPromptBtn = document.getElementById('submitPromptBtn');
+    const activeContextPill = document.getElementById('activeContextPill');
+    const contextFileName = document.getElementById('contextFileName');
+
     let currentCards = [];
     let isGenerating = false;
+
+    function submitPrompt() {
+      const text = promptInput.value.trim();
+      if (!text || isGenerating) return;
+      promptInput.value = '';
+      promptInput.style.height = 'auto';
+      vscode.postMessage({ command: 'submitUserPrompt', prompt: text });
+    }
+
+    submitPromptBtn.addEventListener('click', submitPrompt);
+
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitPrompt();
+      }
+    });
+
+    promptInput.addEventListener('input', () => {
+      promptInput.style.height = 'auto';
+      promptInput.style.height = Math.min(promptInput.scrollHeight, 120) + 'px';
+    });
 
     cancelBtn.addEventListener('click', () => {
       vscode.postMessage({ command: 'cancelGeneration' });
@@ -528,10 +681,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
 
     clearBtn.addEventListener('click', () => {
       vscode.postMessage({ command: 'clearCitations' });
-    });
-
-    startDemoBtn.addEventListener('click', () => {
-      vscode.postMessage({ command: 'startDemoGeneration', topic: 'Playwright Auth & Form Submission' });
     });
 
     window.addEventListener('message', (event) => {
@@ -545,6 +694,9 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
           break;
         case 'updateCard':
           handleUpdateCard(msg.cardId, msg.updates);
+          break;
+        case 'updateActiveContext':
+          handleUpdateContext(msg.fileName);
           break;
         case 'sessionComplete':
           handleSessionEnd(false);
@@ -561,6 +713,15 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
+    function handleUpdateContext(fileName) {
+      if (fileName) {
+        contextFileName.textContent = fileName;
+        activeContextPill.style.display = 'inline-flex';
+      } else {
+        activeContextPill.style.display = 'none';
+      }
+    }
+
     function handleSessionStart(topic) {
       isGenerating = true;
       currentCards = [];
@@ -569,12 +730,16 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       cancelBtn.style.display = 'inline-block';
       emptyState.style.display = 'none';
       cardsContainer.innerHTML = '';
+      submitPromptBtn.disabled = true;
+      submitPromptBtn.style.opacity = '0.5';
     }
 
     function handleSessionEnd(wasInterrupted, statusText) {
       isGenerating = false;
       statusIndicatorEl.style.display = 'none';
       cancelBtn.style.display = 'none';
+      submitPromptBtn.disabled = false;
+      submitPromptBtn.style.opacity = '1';
       if (statusText) {
         sessionTitleEl.textContent = statusText;
       }
@@ -587,6 +752,8 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       sessionTitleEl.textContent = 'Active AI Generation: Idle';
       statusIndicatorEl.style.display = 'none';
       cancelBtn.style.display = 'none';
+      submitPromptBtn.disabled = false;
+      submitPromptBtn.style.opacity = '1';
       cardsContainer.innerHTML = '';
       cardsContainer.appendChild(emptyState);
       emptyState.style.display = 'flex';
@@ -618,7 +785,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function renderCardElement(card, isActive) {
       const cardDiv = document.createElement('div');
       cardDiv.id = 'card-' + card.id;
-      // Collapsed by default
       cardDiv.className = 'card' + (isActive ? ' active' : '') + (card.isExpanded ? ' expanded' : '');
 
       const linesText = card.lineRange ? 'Lines ' + card.lineRange[0] + '-' + card.lineRange[1] : '';
@@ -655,7 +821,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         </div>
       \`;
 
-      // Clicking "Inspect ↗" immediately opens the full-width Middle Editor Pane Modal
       const inspectBtn = cardDiv.querySelector('.btn-inspect');
       inspectBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -668,7 +833,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         vscode.postMessage({ command: 'openInspectionPanel', card: card });
       });
 
-      // Clicking card header toggles inline accordion peek
       const header = cardDiv.querySelector('.card-header');
       header.addEventListener('click', () => {
         cardDiv.classList.toggle('expanded');

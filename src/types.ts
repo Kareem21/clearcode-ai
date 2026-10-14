@@ -34,12 +34,14 @@ export type WebviewToExtensionMessage =
   | { command: 'openExternal'; url: string }
   | { command: 'openInspectionPanel'; card: MicroDecisionCard }
   | { command: 'startDemoGeneration'; topic?: string }
+  | { command: 'submitUserPrompt'; prompt: string }
   | { command: 'webviewReady' };
 
 export type ExtensionToWebviewMessage =
   | { command: 'sessionStart'; topic: string }
   | { command: 'addCard'; card: MicroDecisionCard }
   | { command: 'updateCard'; cardId: string; updates: Partial<MicroDecisionCard> }
+  | { command: 'updateActiveContext'; fileName?: string }
   | { command: 'sessionComplete' }
   | { command: 'sessionCancelled' }
   | { command: 'sessionError'; error: string }

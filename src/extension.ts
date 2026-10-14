@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { EditorWriter } from './engine/editorWriter';
 import { LLMClient } from './engine/llmClient';
@@ -15,10 +16,30 @@ export function activate(context: vscode.ExtensionContext) {
     context.extensionUri,
     () => streamEngine?.cancelGeneration(),
     () => streamEngine?.clearCitations(),
-    (topic?: string) => streamEngine?.startGeneration(topic)
+    (topic?: string) => streamEngine?.startGeneration(topic),
+    (prompt: string) => streamEngine?.startGeneration(prompt)
   );
 
   streamEngine = new StreamEngine(viewProvider, editorWriter, llmClient);
+
+  // Sync active editor file name to context pill in ClearCode panel
+  const syncActiveEditor = (editor?: vscode.TextEditor) => {
+    if (editor && !editor.document.isUntitled) {
+      const base = path.basename(editor.document.fileName);
+      viewProvider.updateActiveContext(base);
+    } else if (editor) {
+      viewProvider.updateActiveContext('Untitled');
+    } else {
+      viewProvider.updateActiveContext(undefined);
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => syncActiveEditor(editor))
+  );
+
+  // Initial sync
+  syncActiveEditor(vscode.window.activeTextEditor);
 
   // Register Webview Provider in the right-hand container
   context.subscriptions.push(
