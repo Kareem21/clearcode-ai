@@ -8,7 +8,7 @@ export interface PlaywrightManifestEntry {
   citations: Citation[];
 }
 
-export const PLAYWRIGHT_ALIGN_MANIFEST: Record<string, PlaywrightManifestEntry> = {
+export const PLAYWRIGHT_MANIFEST: Record<string, PlaywrightManifestEntry> = {
   'nav-login': {
     key: 'nav-login',
     topic: 'Session Initialization & Clean State',

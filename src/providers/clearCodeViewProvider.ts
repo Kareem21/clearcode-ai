@@ -5,6 +5,7 @@ import {
   MicroDecisionCard,
   WebviewToExtensionMessage
 } from '../types';
+import { InspectionPanel } from './inspectionPanel';
 
 export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'clearcode.citationsView';
@@ -44,6 +45,11 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         case 'openExternal':
           if (data.url) {
             vscode.env.openExternal(vscode.Uri.parse(data.url));
+          }
+          break;
+        case 'openInspectionPanel':
+          if (data.card) {
+            InspectionPanel.createOrShow(this._extensionUri, data.card);
           }
           break;
         case 'startDemoGeneration':
@@ -170,7 +176,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       --btn-text: var(--vscode-button-secondaryForeground, #ffffff);
       --highlight-bg: rgba(56, 189, 248, 0.28);
       --highlight-text: #7dd3fc;
-      --modal-backdrop: rgba(0, 0, 0, 0.75);
     }
 
     * {
@@ -190,7 +195,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
-      position: relative;
     }
 
     /* Header Section */
@@ -294,7 +298,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       border-radius: 3px;
     }
 
-    /* Compact Decision Card */
+    /* Compact Decision Card (Collapsed by Default) */
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -378,20 +382,22 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     }
 
     .btn-inspect {
-      padding: 2px 6px;
-      font-size: 10px;
+      padding: 3px 7px;
+      font-size: 10.5px;
+      font-weight: 500;
       background: rgba(56, 189, 248, 0.12);
       color: var(--accent-blue);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 3px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 4px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 3px;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .btn-inspect:hover {
-      background: rgba(56, 189, 248, 0.22);
+      background: rgba(56, 189, 248, 0.25);
       border-color: var(--accent-blue);
     }
 
@@ -413,7 +419,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       border-top: 1px solid var(--card-border);
       background: rgba(0, 0, 0, 0.2);
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .card.expanded .card-body {
@@ -426,203 +432,21 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       line-height: 1.45;
     }
 
-    /* Citations in Card */
-    .citations-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed var(--card-border);
-    }
-
-    .citations-heading {
-      color: var(--accent-blue);
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .citation-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .citation-header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-
-    .citation-name {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    .excerpt-callout {
-      border-left: 2px solid var(--accent-blue);
-      background: rgba(0, 0, 0, 0.35);
-      padding: 6px 8px;
+    .btn-open-middle {
+      align-self: flex-start;
+      margin-top: 2px;
+      padding: 3px 8px;
       font-size: 10.5px;
-      line-height: 1.45;
-      color: #e2e8f0;
-      border-radius: 0 4px 4px 0;
-    }
-
-    .highlight-mark {
-      background: var(--highlight-bg);
-      color: var(--highlight-text);
-      padding: 1px 2px;
-      border-radius: 2px;
-      font-weight: 600;
-    }
-
-    .linkout-row {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .linkout-url {
       color: var(--accent-blue);
-      font-size: 10.5px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-    }
-
-    .linkout-url:hover {
-      text-decoration: underline;
-    }
-
-    /* Modal Overlay */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: var(--modal-backdrop);
-      backdrop-filter: blur(2px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-    }
-
-    .modal-dialog {
-      background: var(--card-bg);
-      border: 1px solid var(--accent-blue);
-      border-radius: 8px;
-      width: 100%;
-      max-width: 520px;
-      max-height: 88vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
-      overflow: hidden;
-      animation: modalFadeIn 0.15s ease-out;
-    }
-
-    @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.96); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    .modal-header {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .modal-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-main);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-close-modal {
       background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 16px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 3px;
       cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      line-height: 1;
     }
 
-    .btn-close-modal:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-    }
-
-    .modal-body {
-      padding: 14px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .modal-section-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--accent-blue);
-      margin-bottom: 4px;
-    }
-
-    .modal-rationale-box {
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--card-border);
-      border-radius: 5px;
-      padding: 10px;
-    }
-
-    .modal-code-block {
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid var(--card-border);
-      border-radius: 5px;
-      padding: 10px;
-      font-family: var(--vscode-editor-font-family, monospace);
-      font-size: 11px;
-      color: #93c5fd;
-      white-space: pre-wrap;
-      line-height: 1.45;
-    }
-
-    .modal-citation-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .modal-footer {
-      padding: 10px 14px;
-      border-top: 1px solid var(--card-border);
-      display: flex;
-      justify-content: flex-end;
-      background: rgba(0, 0, 0, 0.15);
+    .btn-open-middle:hover {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: var(--accent-blue);
     }
 
     /* Footer Action */
@@ -684,22 +508,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     <button id="clearBtn" class="btn btn-clear">Clear Current Citations</button>
   </div>
 
-  <!-- Modal Popup Dialog -->
-  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <div id="modalTitle" class="modal-title">Inspection</div>
-        <button id="modalCloseBtn" class="btn-close-modal" title="Close (Esc)">✕</button>
-      </div>
-      <div id="modalBody" class="modal-body">
-        <!-- Injected via JavaScript -->
-      </div>
-      <div class="modal-footer">
-        <button id="modalDoneBtn" class="btn">Close</button>
-      </div>
-    </div>
-  </div>
-
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
 
@@ -711,109 +519,8 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     const cardsContainer = document.getElementById('cardsContainer');
     const emptyState = document.getElementById('emptyState');
 
-    const modalBackdrop = document.getElementById('modalBackdrop');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalBody = document.getElementById('modalBody');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const modalDoneBtn = document.getElementById('modalDoneBtn');
-
     let currentCards = [];
     let isGenerating = false;
-
-    // Modal controls
-    modalCloseBtn.addEventListener('click', closeModal);
-    modalDoneBtn.addEventListener('click', closeModal);
-    modalBackdrop.addEventListener('click', (e) => {
-      if (e.target === modalBackdrop) {
-        closeModal();
-      }
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') {
-        closeModal();
-      }
-    });
-
-    function openModal(card) {
-      const linesText = card.lineRange ? 'Lines ' + card.lineRange[0] + '-' + card.lineRange[1] : '';
-      modalTitle.innerHTML = \`
-        <span>Step \${card.stepNumber}: \${escapeHtml(card.title)}</span>
-        \${linesText ? '<span class="pill-lines">' + linesText + '</span>' : ''}
-      \`;
-
-      let citationsHtml = '';
-      if (card.citations && card.citations.length > 0) {
-        citationsHtml = card.citations.map((cit) => {
-          const badgeClass = 'badge-' + cit.sourceType;
-          const badgeLabel = cit.sourceType === 'official' ? 'Official Docs' :
-                             cit.sourceType === 'github' ? 'GitHub Issue' :
-                             cit.sourceType === 'stackoverflow' ? 'Stack Overflow' : 'Community';
-
-          let excerpt = escapeHtml(cit.excerpt || '');
-          if (cit.highlight) {
-            const escapedHighlight = escapeHtml(cit.highlight);
-            excerpt = excerpt.replace(escapedHighlight, '<mark class="highlight-mark">' + escapedHighlight + '</mark>');
-          }
-
-          return \`
-            <div class="modal-citation-card">
-              <div class="citation-header-row">
-                <span class="source-badge \${badgeClass}">\${badgeLabel}</span>
-                <span class="citation-name">\${escapeHtml(cit.sourceName || '')}</span>
-              </div>
-              <div class="excerpt-callout">\${excerpt}</div>
-              <div class="linkout-row">
-                <a class="linkout-url" data-url="\${escapeHtml(cit.url || '')}">
-                  <span>\${escapeHtml(cit.url || '')}</span>
-                  <span>↗</span>
-                </a>
-              </div>
-            </div>
-          \`;
-        }).join('');
-      } else {
-        citationsHtml = '<div style="color:var(--text-muted);font-size:11px;">No external citations recorded for this step.</div>';
-      }
-
-      modalBody.innerHTML = \`
-        <div>
-          <div class="modal-section-label">Micro-Decision Rationale</div>
-          <div class="modal-rationale-box">\${escapeHtml(card.rationale || '')}</div>
-        </div>
-
-        \${card.codeSnippet ? \`
-          <div>
-            <div class="modal-section-label">Generated Playwright Code</div>
-            <pre class="modal-code-block">\${escapeHtml(card.codeSnippet)}</pre>
-          </div>
-        \` : ''}
-
-        <div>
-          <div class="modal-section-label">Verified Official Docs & Sources</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            \${citationsHtml}
-          </div>
-        </div>
-      \`;
-
-      // Wire external link clicks in modal
-      modalBody.querySelectorAll('.linkout-url').forEach((link) => {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          const url = link.getAttribute('data-url');
-          if (url) {
-            vscode.postMessage({ command: 'openExternal', url });
-          }
-        });
-      });
-
-      modalBackdrop.style.display = 'flex';
-    }
-
-    function closeModal() {
-      modalBackdrop.style.display = 'none';
-    }
 
     cancelBtn.addEventListener('click', () => {
       vscode.postMessage({ command: 'cancelGeneration' });
@@ -857,7 +564,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function handleSessionStart(topic) {
       isGenerating = true;
       currentCards = [];
-      closeModal();
       sessionTitleEl.textContent = 'Active AI Generation: ' + topic;
       statusIndicatorEl.style.display = 'inline-flex';
       cancelBtn.style.display = 'inline-block';
@@ -878,7 +584,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function handleClear() {
       isGenerating = false;
       currentCards = [];
-      closeModal();
       sessionTitleEl.textContent = 'Active AI Generation: Idle';
       statusIndicatorEl.style.display = 'none';
       cancelBtn.style.display = 'none';
@@ -892,7 +597,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       document.querySelectorAll('.card.active').forEach((el) => el.classList.remove('active'));
 
       currentCards.push(card);
-      // Collapsed by default (card.isExpanded is false)
+      // Collapsed by default
       const cardEl = renderCardElement(card, true);
       cardsContainer.appendChild(cardEl);
       cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -913,13 +618,12 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function renderCardElement(card, isActive) {
       const cardDiv = document.createElement('div');
       cardDiv.id = 'card-' + card.id;
-      // ONLY expand if card.isExpanded === true (default is false)
+      // Collapsed by default
       cardDiv.className = 'card' + (isActive ? ' active' : '') + (card.isExpanded ? ' expanded' : '');
 
       const linesText = card.lineRange ? 'Lines ' + card.lineRange[0] + '-' + card.lineRange[1] : '';
       const headerTitle = card.stepNumber + '. ' + card.title;
 
-      // Source badges preview
       let sourceBadgesHtml = '';
       if (card.citations && card.citations.length > 0) {
         sourceBadgesHtml = card.citations.map((c) => {
@@ -941,85 +645,36 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
             </div>
           </div>
           <div class="card-actions-col">
-            <button class="btn-inspect" title="Open detailed inspection modal">Inspect ↗</button>
+            <button class="btn-inspect" title="Open in Middle Editor Pane">Inspect ↗</button>
             <span class="chevron-icon">▼</span>
           </div>
         </div>
         <div class="card-body">
           <div class="rationale-text">\${escapeHtml(card.rationale || '')}</div>
-          <div class="citations-section">
-            <div class="citations-heading">Official Docs & Sources:</div>
-            <div class="citations-list"></div>
-          </div>
+          <button class="btn-open-middle">Open Full Inspection View in Middle Pane ↗</button>
         </div>
       \`;
 
-      // Header click: open modal when clicking inspect or title, or toggle inline accordion
+      // Clicking "Inspect ↗" immediately opens the full-width Middle Editor Pane Modal
       const inspectBtn = cardDiv.querySelector('.btn-inspect');
       inspectBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openModal(card);
+        vscode.postMessage({ command: 'openInspectionPanel', card: card });
       });
 
+      const openMiddleBtn = cardDiv.querySelector('.btn-open-middle');
+      openMiddleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        vscode.postMessage({ command: 'openInspectionPanel', card: card });
+      });
+
+      // Clicking card header toggles inline accordion peek
       const header = cardDiv.querySelector('.card-header');
-      header.addEventListener('click', (e) => {
-        // Toggle inline expansion on header click
+      header.addEventListener('click', () => {
         cardDiv.classList.toggle('expanded');
       });
 
-      // Populate inline citations if any
-      const citationsList = cardDiv.querySelector('.citations-list');
-      if (card.citations && card.citations.length > 0) {
-        card.citations.forEach((cit) => {
-          citationsList.appendChild(renderInlineCitationItem(cit));
-        });
-      } else {
-        citationsList.innerHTML = '<span style="color:var(--text-muted);font-size:10px;">No external citations.</span>';
-      }
-
       return cardDiv;
-    }
-
-    function renderInlineCitationItem(cit) {
-      const item = document.createElement('div');
-      item.className = 'citation-item';
-
-      const badgeClass = 'badge-' + cit.sourceType;
-      const badgeLabel = cit.sourceType === 'official' ? 'Official Docs' :
-                         cit.sourceType === 'github' ? 'GitHub' :
-                         cit.sourceType === 'stackoverflow' ? 'Stack Overflow' : 'Community';
-
-      let formattedExcerpt = escapeHtml(cit.excerpt || '');
-      if (cit.highlight) {
-        const escapedHighlight = escapeHtml(cit.highlight);
-        formattedExcerpt = formattedExcerpt.replace(
-          escapedHighlight,
-          '<mark class="highlight-mark">' + escapedHighlight + '</mark>'
-        );
-      }
-
-      item.innerHTML = \`
-        <div class="citation-header-row">
-          <span class="source-badge \${badgeClass}">\${badgeLabel}</span>
-          <span class="citation-name">\${escapeHtml(cit.sourceName || '')}</span>
-        </div>
-        <div class="excerpt-callout">\${formattedExcerpt}</div>
-        <div class="linkout-row">
-          <a class="linkout-url">
-            <span>\${escapeHtml((cit.url || '').replace(/^https?:\\/\\//, '').slice(0, 36))}...</span>
-            <span>↗</span>
-          </a>
-        </div>
-      \`;
-
-      const linkout = item.querySelector('.linkout-url');
-      linkout.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        vscode.postMessage({ command: 'openExternal', url: cit.url });
-      });
-
-      return item;
     }
 
     function escapeHtml(text) {

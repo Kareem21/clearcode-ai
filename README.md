@@ -35,7 +35,7 @@ Tracks 1-indexed line numbers    - Highlighted quote excerpt
 - `src/providers/clearCodeViewProvider.ts`: WebviewViewProvider for the auxiliary sidebar panel. Manages the session lifecycle, accordion cards, highlighted excerpt views, and browser linkouts.
 - `src/engine/streamEngine.ts`: Central coordinator. Handles line tracking, AbortController cancellation, editor insertion, and status bar state.
 - `src/engine/llmClient.ts`: Single-stream client supporting Gemini (`gemini-3.8-flash`), OpenAI, or an offline reference manifest. Enforces scope validation.
-- `src/aligncraft/playwrightManifest.ts`: Index of Playwright best-practice citations (navigation lifecycle, user-visible locators, auto-retrying assertions, actionability checks).
+- `src/manifest/playwrightManifest.ts`: Index of Playwright best-practice citations (navigation lifecycle, user-visible locators, auto-retrying assertions, actionability checks).
 
 ## Setup & Running Locally
 

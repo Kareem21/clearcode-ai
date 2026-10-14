@@ -32,6 +32,7 @@ export type WebviewToExtensionMessage =
   | { command: 'cancelGeneration' }
   | { command: 'clearCitations' }
   | { command: 'openExternal'; url: string }
+  | { command: 'openInspectionPanel'; card: MicroDecisionCard }
   | { command: 'startDemoGeneration'; topic?: string }
   | { command: 'webviewReady' };
 

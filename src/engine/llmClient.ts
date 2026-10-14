@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { PLAYWRIGHT_ALIGN_MANIFEST } from '../aligncraft/playwrightManifest';
+import { PLAYWRIGHT_MANIFEST } from '../manifest/playwrightManifest';
 import { Citation } from '../types';
 
 export interface StreamStepPayload {
@@ -264,23 +264,23 @@ Output ONLY a sequence of NDJSON lines conforming to schema:
     const manifestEntries = [
       {
         title: 'Clean State Navigation',
-        ...PLAYWRIGHT_ALIGN_MANIFEST['nav-login']
+        ...PLAYWRIGHT_MANIFEST['nav-login']
       },
       {
         title: 'User-Centric Accessible Locators',
-        ...PLAYWRIGHT_ALIGN_MANIFEST['locator-role-email']
+        ...PLAYWRIGHT_MANIFEST['locator-role-email']
       },
       {
         title: 'Actionability-Checked Password Input',
-        ...PLAYWRIGHT_ALIGN_MANIFEST['locator-fill-password']
+        ...PLAYWRIGHT_MANIFEST['locator-fill-password']
       },
       {
         title: 'Role-Based Button Dispatch',
-        ...PLAYWRIGHT_ALIGN_MANIFEST['button-submit']
+        ...PLAYWRIGHT_MANIFEST['button-submit']
       },
       {
         title: 'Auto-Retrying Web-First Assertion',
-        ...PLAYWRIGHT_ALIGN_MANIFEST['assertion-web-first']
+        ...PLAYWRIGHT_MANIFEST['assertion-web-first']
       }
     ];
 

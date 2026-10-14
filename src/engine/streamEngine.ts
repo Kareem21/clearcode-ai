@@ -55,7 +55,7 @@ export class StreamEngine {
     this._activeAbortController = new AbortController();
     const abortSignal = this._activeAbortController.signal;
 
-    // Status bar update (matches [sa.jpeg] status bar: "[AlignCraft] | Verifying Generation | ...")
+    // Status bar update
     this._statusBarItem.text = `$(sync~spin) [ClearCode] | Generating & Verifying | Playwright`;
     this._statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
 
