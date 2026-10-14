@@ -1,6 +1,6 @@
 # ClearCode AI
 
-ClearCode AI is an open-source Visual Studio Code extension designed to eliminate AI comprehension debt and black-box code generation. While standard AI coding assistants stream code directly into the editor as opaque text blocks, ClearCode AI uses a decision-first causal streaming protocol. For each step of code generated, the system produces the architectural rationale and documentation citations before the code is inserted, synchronizing line-by-line editor insertion with real-time micro-decision cards in a dedicated sidebar and an in-depth inspection view in the main editor.
+ClearCode AI is an open-source Visual Studio Code extension designed to eliminate AI comprehension debt and black-box code generation. While standard AI coding assistants stream code directly into the editor as opaque text blocks, ClearCode AI uses a decision-first causal streaming protocol powered by live frontier LLM reasoning and real-time search grounding. For each step of code generated, the system produces the architectural rationale and documentation citations before the code is inserted, synchronizing line-by-line editor insertion with real-time micro-decision cards in a dedicated sidebar and an in-depth inspection view in the main editor.
 
 The extension is currently optimized for TypeScript and Playwright end-to-end test engineering, with architectural extensibility to general software engineering workflows.
 
@@ -9,19 +9,20 @@ The extension is currently optimized for TypeScript and Playwright end-to-end te
 ## Table of Contents
 
 1. Problem Statement and Philosophy
-2. System Architecture
-3. Codebase Structure and Module Directory
-4. Core Subsystems
+2. Frontier LLM Reasoning vs Naive RAG
+3. System Architecture
+4. Codebase Structure and Module Directory
+5. Core Subsystems
    - Causal Decision-First Streaming Engine
-   - Dual-Track Source Verification Subsystem
+   - Multi-Tier Source Verification Subsystem
    - Editor Writer and Line-Range Synchronizer
    - Webview Provider (Sidebar Interface)
    - Inspection Panel (Middle Editor Full-Width Modal)
-   - Large Language Model Client and Stream Parser
-5. Data Flow and Inter-Process Communication (IPC)
-6. Security and Configuration
-7. Local Development and Build Instructions
-8. Troubleshooting and Operational Notes
+   - Large Language Model Client and Real-Time Search Grounding
+6. Data Flow and Inter-Process Communication (IPC)
+7. Security and Configuration
+8. Local Development and Build Instructions
+9. Troubleshooting and Operational Notes
 
 ---
 
@@ -32,18 +33,33 @@ The extension is currently optimized for TypeScript and Playwright end-to-end te
 Modern large language models generate syntactically plausible code at high velocity. However, this creates a compounding comprehension deficit for software engineers:
 - Opaque Code Emission: Code blocks are inserted without explaining the underlying architectural trade-offs, configuration assumptions, or specific API design patterns chosen.
 - Post-Hoc Confabulation: When asked to explain previously generated code, models confabulate rationales after the fact, inventing plausible-sounding explanations that do not reflect why specific constructs were selected.
-- Unverified Paraphrasing and Outdated Sources: Models frequently paraphrase documentation or cite forum threads that have evolved or become obsolete, leading developers to trust invalid patterns (for example, using arbitrary sleep timeouts instead of auto-retrying web-first locator assertions).
+- Unverified Paraphrasing: Models frequently paraphrase documentation or cite forum threads that have evolved or become obsolete, leading developers to trust invalid patterns (for example, using arbitrary sleep timeouts instead of auto-retrying web-first locator assertions).
 
 ### ClearCode AI Design Principles
 
 1. Decision-First Causal Streaming: The model must output the decision title, rationale, and cited source before emitting the code block. This forces the model to condition code generation on verified architectural rules rather than rationalizing code after outputting it.
-2. Radical Source Transparency: ClearCode AI draws a strict distinction between verified canonical documentation (guaranteed verbatim quotes from official specifications) and internal model memory patterns. When a pattern cannot be verified against canonical docs, the UI explicitly flags it as unverified model knowledge rather than confabulating a false citation.
-3. Dual-View Inspection: High-level overview cards remain non-intrusive in the auxiliary sidebar, while an in-depth inspection modal can be opened in the main editor pane to inspect code snippets, highlighted quotes, and direct browser links.
-4. Per-Generation Lifecycle: Every generation session starts fresh. When a user submits a new prompt or clears citations, previous session data is reset to ensure citations strictly reflect active editor modifications.
+2. Full Frontier Reasoning Without Naive RAG: ClearCode avoids restrictive RAG pipelines that artificially throttle model context to a few pre-retrieved text snippets. The frontier model has complete creative and reasoning freedom over the entire problem space.
+3. Radical Source Transparency: ClearCode AI draws a strict distinction between verified canonical documentation (guaranteed verbatim quotes from official specifications), live web search grounded citations, and internal model memory patterns. When a pattern cannot be verified against canonical docs, the UI explicitly flags it as unverified model knowledge rather than confabulating a false citation.
+4. Dual-View Inspection: High-level overview cards remain non-intrusive in the auxiliary sidebar, while an in-depth inspection modal can be opened in the main editor pane to inspect code snippets, highlighted quotes, and direct browser links.
+5. Per-Generation Lifecycle: Every generation session starts fresh. When a user submits a new prompt or clears citations, previous session data is reset to ensure citations strictly reflect active editor modifications.
 
 ---
 
-## 2. System Architecture
+## 2. Frontier LLM Reasoning vs Naive RAG
+
+A common failure mode in AI developer tools is using basic Retrieval-Augmented Generation (RAG) to restrict the model's knowledge base. In a standard RAG setup:
+1. An embedding algorithm retrieves two or three text chunks from a pre-crawled folder.
+2. The model prompt is hard-coded with: "Only answer using these three snippets."
+3. The model's problem-solving intelligence is crippled, transforming a frontier reasoning engine into a brittle copy-paste search assistant.
+
+ClearCode AI explicitly rejects this constraint:
+- Complete Generative Freedom: The model operates with its full reasoning weights, understanding TypeScript generics, asynchronous event loops, complex DOM selectors, and Playwright execution lifecycles.
+- Real-Time Google Search Grounding: The LLM client integrates native Google Search grounding (`tools: [{ google_search: {} }]`). When generating test logic for any Playwright API (e.g., file downloads, dialog handling, iframe isolation, or network interception), the model queries the live web in real time.
+- Non-Destructive Verification: The verification engine does not discard or replace live search citations. It validates them hierarchically, upgrading matching official APIs to canonical verbatim quotes while preserving live web links and excerpts.
+
+---
+
+## 3. System Architecture
 
 The following diagram illustrates the unidirectional data flow from prompt input to editor and webview synchronization:
 
@@ -64,8 +80,8 @@ The following diagram illustrates the unidirectional data flow from prompt input
                                     v
 +-----------------------------------------------------------------------+
 |                           LLMClient                                   |
-|   - Evaluates scope validation                                        |
-|   - Issues streaming SSE request (Gemini Flash / OpenAI / Demo)       |
+|   - Single-call causal streaming protocol                             |
+|   - Real-time Google Search Grounding (tools: [{ google_search }])    |
 |   - Parses brace-balanced JSON objects incrementally                  |
 +-----------------------------------------------------------------------+
                                     |
@@ -77,8 +93,8 @@ The following diagram illustrates the unidirectional data flow from prompt input
 +-----------------------+                       +-----------------------+
 |     EditorWriter      |                       |    SourceVerifier     |
 | - Inserts code chunk  |                       | - Validates citation  |
-|   into active editor  |                       |   against canonical   |
-| - Computes exact      |                       |   documentation index |
+|   into active editor  |                       |   through 4-tier      |
+| - Computes exact      |                       |   verification hierarchy|
 |   1-indexed line range|                       | - Assigns 'verified'  |
 |   [StartLine, EndLine]|                       |   or 'unverified'     |
 +-----------------------+                       +-----------------------+
@@ -111,7 +127,7 @@ The following diagram illustrates the unidirectional data flow from prompt input
 
 ---
 
-## 3. Codebase Structure and Module Directory
+## 4. Codebase Structure and Module Directory
 
 ```
 clearcode/
@@ -126,9 +142,9 @@ clearcode/
 │   ├── engine/
 │   │   ├── streamEngine.ts        # Central generation orchestrator and lifecycle manager
 │   │   ├── editorWriter.ts        # Editor text insertion and 1-indexed line range calculator
-│   │   └── llmClient.ts           # SSE streaming client, JSON parser, and env credential loader
+│   │   └── llmClient.ts           # SSE streaming client, real-time search grounding, JSON parser
 │   ├── verification/
-│   │   └── sourceVerifier.ts      # Canonical ground-truth index and source verification engine
+│   │   └── sourceVerifier.ts      # Multi-tier verification engine and canonical spec matcher
 │   ├── providers/
 │   │   ├── clearCodeViewProvider.ts # Sidebar WebviewViewProvider and prompt input bridge
 │   │   └── inspectionPanel.ts     # Middle editor full-width WebviewPanel for deep inspection
@@ -139,9 +155,9 @@ clearcode/
 
 ---
 
-## 4. Core Subsystems
+## 5. Core Subsystems
 
-### 4.1 Causal Decision-First Streaming Engine (`src/engine/streamEngine.ts`)
+### 5.1 Causal Decision-First Streaming Engine (`src/engine/streamEngine.ts`)
 
 The `StreamEngine` class is the central orchestrator that coordinates between the user, the active text editor, the language model stream, and the user interface providers.
 
@@ -154,23 +170,28 @@ Key Responsibilities:
   3. Constructs a `MicroDecisionCard` and dispatches it immediately to `ClearCodeViewProvider`.
 - Status Bar Integration: Controls a VS Code status bar item displaying real-time states: Ready, Streaming, Verified, Cancelled, or Error.
 
-### 4.2 Dual-Track Source Verification Subsystem (`src/verification/sourceVerifier.ts`)
+### 5.2 Multi-Tier Source Verification Subsystem (`src/verification/sourceVerifier.ts`)
 
-LLMs cannot reliably output verbatim quotes from memory; they frequently hallucinate or paraphrase passages. Furthermore, scraping live community threads at runtime is brittle due to Cloudflare anti-bot interstitials and mutable page contents.
+To ensure radical honesty without restricting the model's generative scope, `SourceVerifier` evaluates every citation through a four-tier verification hierarchy:
 
-To solve this, `SourceVerifier` implements a dual-track verification model:
+1. Tier 1: Canonical Verbatim Specifications (`CANONICAL_PLAYWRIGHT_DOCS`)
+   - Curated word-for-word extracts from official Microsoft Playwright documentation.
+   - Covers core Playwright APIs: `page.goto`, `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`, `getByTestId`, `page.locator`, `toBeVisible`, `toHaveURL`, `toHaveText`, `toHaveTitle`, `toBeChecked`, `toBeEnabled`, actionability checks (`fill`, `click`), authentication state storage (`storageState`), network interception (`page.route`), and test lifecycle hooks (`test.describe`, `beforeEach`).
+   - If a step matches an indexed spec, `SourceVerifier` upgrades it with the exact verbatim quote and deep-anchor URL, setting `verificationStatus = 'verified'`.
 
-1. Canonical Playwright Index (`CANONICAL_PLAYWRIGHT_DOCS`):
-   - Contains curated, word-for-word extracts from official Microsoft Playwright documentation.
-   - Covers critical Playwright APIs: `page.goto`, `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`, `getByTestId`, `page.locator`, `toBeVisible`, `toHaveURL`, `toHaveText`, `toHaveTitle`, `toBeChecked`, `toBeEnabled`, actionability checks (`fill`, `click`), authentication state storage (`storageState`), network interception (`page.route`), and test lifecycle hooks (`test.describe`, `beforeEach`).
-   - If a step code or citation matches an indexed entry, `SourceVerifier` replaces any loose paraphrases with the exact verbatim excerpt and anchor URL, setting `verificationStatus = 'verified'`.
+2. Tier 2: Real-Time Official Grounding (Search-Grounded Official Docs)
+   - When the user asks for Playwright or TypeScript features outside the curated core list (e.g., file downloads, dialog handling, permissions, tracing), Gemini's real-time Google search grounding fetches the authentic documentation URL (e.g., `https://playwright.dev/docs/dialogs`).
+   - The verifier validates the official domain, preserves the real URL and excerpt, and sets `verificationStatus = 'verified'`.
 
-2. Honest Model Knowledge Fallback (`verificationStatus = 'unverified_model'`):
-   - When a micro-decision relies on community patterns or internal LLM memory that cannot be verified against canonical specifications, the engine does not disguise it.
-   - It assigns an explicit notice: "This micro-decision was generated from the AI model internal pre-training weights and could not be verified against official documentation specifications. Review this pattern according to your team code standards."
-   - It provides a direct search link to GitHub issues and discussions so the user can review community findings safely.
+3. Tier 3: Live Community References (Forums and Discussions)
+   - When a micro-decision references an external community pattern (e.g., GitHub discussions, Stack Overflow), the verifier preserves the live URL and excerpt.
+   - It sets `verificationStatus = 'unverified_model'` and labels it as a community reference, allowing the user to inspect the actual link without misleading them into thinking it is an official specification.
 
-### 4.3 Editor Writer and Line-Range Synchronizer (`src/engine/editorWriter.ts`)
+4. Tier 4: Honest Model Knowledge Fallback
+   - If a micro-decision has no external reference or was generated purely from internal model weights, the verifier explicitly tags it: "This micro-decision was generated from the AI model internal pre-training weights and does not have an external URL reference. Review this pattern according to your team code standards."
+   - It attaches a targeted GitHub search fallback link so the developer can verify community consensus independently.
+
+### 5.3 Editor Writer and Line-Range Synchronizer (`src/engine/editorWriter.ts`)
 
 The `EditorWriter` handles the precise physical insertion of code text into the active `vscode.TextEditor`.
 
@@ -179,7 +200,7 @@ Key Mechanisms:
 - Line Calculations: Measures the exact start line and end line before and after insertion using `editor.edit(...)`, converting 0-indexed VS Code line structures into developer-friendly 1-indexed line numbers (e.g., `Lines 14-22`).
 - Clean Formatting: Strips redundant wrapping artifacts and ensures proper newline spacing between streaming steps.
 
-### 4.4 Webview Provider (Sidebar Interface) (`src/providers/clearCodeViewProvider.ts`)
+### 5.4 Webview Provider (Sidebar Interface) (`src/providers/clearCodeViewProvider.ts`)
 
 Implements `vscode.WebviewViewProvider` to render the primary ClearCode sidebar panel in the VS Code Activity Bar.
 
@@ -190,7 +211,7 @@ UI Features:
 - Action Triggers: Includes an `Inspect` button on each card that sends an IPC message to open the full-width middle editor panel.
 - Clear Current Citations: Resets the sidebar state to idle and clears all active cards.
 
-### 4.5 Inspection Panel (`src/providers/inspectionPanel.ts`)
+### 5.5 Inspection Panel (`src/providers/inspectionPanel.ts`)
 
 Because standard sidebar iframes cannot float over the middle editor, ClearCode AI uses `vscode.window.createWebviewPanel` to display a full-width inspection modal directly in `vscode.ViewColumn.One`.
 
@@ -202,11 +223,11 @@ Panel Contents:
   - For Verified Citations: Displays a green badge `[Verified Official Docs]`, an official specification note, and the verbatim excerpt with `<mark>` highlight on key phrases, alongside an "Open Official Documentation" browser link.
   - For Unverified Model Knowledge: Displays an amber badge `[AI Model Knowledge]`, an honest verification notice explaining that the pattern originates from pre-training weights, and a "Search Discussions & Issues" linkout to GitHub.
 
-### 4.6 Large Language Model Client and Stream Parser (`src/engine/llmClient.ts`)
+### 5.6 Large Language Model Client and Real-Time Search Grounding (`src/engine/llmClient.ts`)
 
 The `LLMClient` coordinates communication with external AI providers:
 
-- Multi-Provider Support: Supports Google Gemini (`gemini-3.8-flash`) via native Server-Sent Events (SSE) streaming, OpenAI chat completions, or an offline reference manifest.
+- Real-Time Google Search Grounding: Attaches `tools: [{ google_search: {} }]` to the Gemini payload. This allows Gemini to execute live Google web queries during code generation, retrieving authentic URLs and documentation passages for any query.
 - Single-Call Causal Prompting: Formats system and user prompts to require structured JSON outputs where decision attributes precede code emission.
 - Resilient Brace-Balanced JSON Parser: Because LLM streaming chunks cut through arbitrary boundaries, `LLMClient` accumulates chunks and uses a character-by-character bracket-balancing parser to extract complete JSON step objects as soon as their closing brace `}` is received.
 - Robust Environment Loading: Loads API keys from multiple tiers:
@@ -217,7 +238,7 @@ The `LLMClient` coordinates communication with external AI providers:
 
 ---
 
-## 5. Data Flow and Inter-Process Communication (IPC)
+## 6. Data Flow and Inter-Process Communication (IPC)
 
 The extension utilizes bidirectional message passing between the Node.js extension host and the Webview contexts.
 
@@ -246,7 +267,7 @@ The extension utilizes bidirectional message passing between the Node.js extensi
 
 ---
 
-## 6. Security and Configuration
+## 7. Security and Configuration
 
 ### API Key Protection
 
@@ -268,7 +289,7 @@ All Webview contexts (`ClearCodeViewProvider` and `InspectionPanel`) enforce str
 
 ---
 
-## 7. Local Development and Build Instructions
+## 8. Local Development and Build Instructions
 
 ### Prerequisites
 
@@ -294,7 +315,7 @@ All Webview contexts (`ClearCodeViewProvider` and `InspectionPanel`) enforce str
    ```env
    GEMINI_API_KEY=your_actual_gemini_api_key
    CLEARCODE_PROVIDER=gemini
-   CLEARCODE_MODEL=gemini-3.8-flash
+   CLEARCODE_MODEL=gemini-2.5-flash
    ```
 
 4. Compile the TypeScript code:
@@ -320,9 +341,9 @@ All Webview contexts (`ClearCodeViewProvider` and `InspectionPanel`) enforce str
 
 ---
 
-## 8. Troubleshooting and Operational Notes
+## 9. Troubleshooting and Operational Notes
 
 - Active Editor Requirement: If code generation fails with an alert indicating that no active editor is open, open or focus a text editor tab before submitting your prompt.
 - API Key Errors: If the status bar reports `[ClearCode] | Error`, ensure `GEMINI_API_KEY` is present in either `.env`, `~/.clearcode_env`, or the `clearcode.apiKey` setting in VS Code.
+- Model Identifiers: Supported fast models with search grounding include `gemini-2.5-flash` and `gemini-3.8-flash`.
 - Offline Demo Mode: To test the extension without an internet connection or API key, set `clearcode.provider` to `"demo"` in settings. The extension will stream from the built-in canonical Playwright manifest.
-- Cloudflare Restrictions on Community Forums: ClearCode AI deliberately does not scrape live Stack Overflow or GitHub discussion URLs at runtime. Instead, it relies on its canonical index for verified documentation and flags all other patterns as model knowledge, providing safe outbound search links.

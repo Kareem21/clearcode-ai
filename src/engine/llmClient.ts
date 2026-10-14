@@ -68,9 +68,10 @@ export class LLMClient {
     abortSignal: AbortSignal,
     editorContext?: { fileName: string; content: string }
   ): AsyncGenerator<StreamStepPayload, void, unknown> {
-    const systemPrompt = `You are ClearCode AI, a Senior Software & TypeScript Engineer.
+    const systemPrompt = `You are ClearCode AI, a Senior Software & TypeScript Engineer with real-time web search grounding.
 Your task is to write clean, modern, reliable, and production-ready code directly answering the user's prompt.
 CRITICAL REQUIREMENT: For each logical step or micro-decision in your implementation, determine the architectural decision and documentation citation FIRST, then generate the code line(s) conditioned on that decision.
+When citing documentation, provide real URLs (such as https://playwright.dev/docs/... or https://www.typescriptlang.org/docs/...) and relevant excerpts.
 Output ONLY a sequence of NDJSON lines, one JSON object per line. Each line must be a JSON object conforming to this schema:
 {
   "stepNumber": number,
@@ -96,13 +97,18 @@ Do NOT output markdown code fences (\`\`\`json). Do NOT output conversational pr
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
-    const body = {
+    const body: Record<string, unknown> = {
       system_instruction: {
         parts: [{ text: systemPrompt }]
       },
       contents: [
         {
           parts: [{ text: userPromptText }]
+        }
+      ],
+      tools: [
+        {
+          google_search: {}
         }
       ],
       generationConfig: {

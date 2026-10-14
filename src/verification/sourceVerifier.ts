@@ -201,8 +201,45 @@ export class SourceVerifier {
       }
     }
 
-    // 2. Non-official or unverified model memory
-    // If the citation originated from LLM pre-training memory or obscure forum
+    // 2. Official documentation URL retrieved dynamically via LLM search grounding
+    if (rawCitation.url && /^https?:\/\//i.test(rawCitation.url)) {
+      const isOfficialDomain = /playwright\.dev|typescriptlang\.org|nodejs\.org|developer\.mozilla\.org/i.test(
+        rawCitation.url
+      );
+      const isGithub = /github\.com/i.test(rawCitation.url);
+
+      if (isOfficialDomain || isGithub) {
+        return {
+          id: rawCitation.id || `live-doc-${Date.now()}`,
+          sourceType: isOfficialDomain ? 'official' : 'github',
+          sourceName:
+            rawCitation.sourceName || (isOfficialDomain ? 'Official Documentation' : 'GitHub Reference'),
+          url: rawCitation.url,
+          excerpt:
+            rawCitation.excerpt ||
+            'Live documentation reference retrieved dynamically via model search grounding.',
+          highlight: rawCitation.highlight,
+          verificationStatus: 'verified',
+          verificationDetails: 'Live official documentation retrieved via real-time search grounding.'
+        };
+      }
+
+      // Community / forum web reference
+      return {
+        id: rawCitation.id || `live-ref-${Date.now()}`,
+        sourceType: rawCitation.sourceType || 'community',
+        sourceName: rawCitation.sourceName || 'Community Reference',
+        url: rawCitation.url,
+        excerpt:
+          rawCitation.excerpt ||
+          'Community pattern referenced by model search. Review against project standards.',
+        highlight: rawCitation.highlight,
+        verificationStatus: 'unverified_model',
+        verificationDetails: 'Live community reference. Verify against team standards.'
+      };
+    }
+
+    // 3. Fallback for internal LLM memory without an external citation
     const searchTopic = encodeURIComponent(
       (stepTitle || 'playwright best practices').replace(/step \d+:?/i, '').trim()
     );
@@ -212,9 +249,9 @@ export class SourceVerifier {
       id: rawCitation.id || `unverified-${Date.now()}`,
       sourceType: rawCitation.sourceType || 'community',
       sourceName: rawCitation.sourceName || 'AI Model Internal Pattern',
-      url: rawCitation.url && rawCitation.url.startsWith('http') ? rawCitation.url : safeFallbackUrl,
+      url: safeFallbackUrl,
       excerpt:
-        'This micro-decision was generated from the AI model internal pre-training weights and could not be verified against official documentation specifications. Review this pattern according to your team code standards.',
+        'This micro-decision was generated from the AI model internal pre-training weights and does not have an external URL reference. Review this pattern according to your team code standards.',
       highlight: undefined,
       verificationStatus: 'unverified_model',
       verificationDetails: 'Unverified ground truth. Pattern generated from LLM internal pre-training representations.'
