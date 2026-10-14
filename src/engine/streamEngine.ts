@@ -79,15 +79,16 @@ export class StreamEngine {
           abortSignal
         );
 
-        // Build and dispatch decision card to webview
+        // Build and dispatch decision card to webview (collapsed by default)
         const card: MicroDecisionCard = {
           id: `step-${step.stepNumber}-${Date.now()}`,
           stepNumber: step.stepNumber,
           title: step.title,
           lineRange,
           rationale: step.rationale,
+          codeSnippet: step.code,
           citations: step.citations,
-          isExpanded: true
+          isExpanded: false
         };
 
         this._viewProvider.addCard(card);

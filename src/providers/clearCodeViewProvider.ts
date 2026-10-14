@@ -157,10 +157,10 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
   <title>ClearCode Citations</title>
   <style>
     :root {
-      --bg-color: var(--vscode-sideBar-background, #1e1e1e);
-      --card-bg: var(--vscode-editor-background, #18181b);
-      --card-border: var(--vscode-widget-border, #27272a);
-      --card-active-border: var(--vscode-focusBorder, #0078d4);
+      --bg-color: var(--vscode-sideBar-background, #18181b);
+      --card-bg: var(--vscode-editor-background, #1e1e24);
+      --card-border: var(--vscode-widget-border, #2d2d34);
+      --card-active-border: #38bdf8;
       --text-main: var(--vscode-foreground, #e4e4e7);
       --text-muted: var(--vscode-descriptionForeground, #a1a1aa);
       --accent-blue: #38bdf8;
@@ -168,8 +168,9 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       --btn-bg: var(--vscode-button-secondaryBackground, #27272a);
       --btn-hover: var(--vscode-button-secondaryHoverBackground, #3f3f46);
       --btn-text: var(--vscode-button-secondaryForeground, #ffffff);
-      --highlight-bg: rgba(56, 189, 248, 0.22);
+      --highlight-bg: rgba(56, 189, 248, 0.28);
       --highlight-text: #7dd3fc;
+      --modal-backdrop: rgba(0, 0, 0, 0.75);
     }
 
     * {
@@ -189,6 +190,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
+      position: relative;
     }
 
     /* Header Section */
@@ -292,7 +294,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       border-radius: 3px;
     }
 
-    /* Decision Card (sa.jpeg style) */
+    /* Compact Decision Card */
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -302,94 +304,56 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     }
 
     .card.active {
-      border-color: var(--accent-active);
-      box-shadow: 0 0 0 1px var(--accent-active), 0 2px 8px rgba(14, 165, 233, 0.15);
+      border-color: var(--card-active-border);
+      box-shadow: 0 0 0 1px var(--card-active-border), 0 2px 10px rgba(56, 189, 248, 0.15);
     }
 
     .card-header {
-      padding: 8px 10px;
+      padding: 9px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       cursor: pointer;
       user-select: none;
       background: rgba(255, 255, 255, 0.02);
-      font-weight: 500;
-      font-size: 11.5px;
+      gap: 6px;
     }
 
     .card-header:hover {
       background: rgba(255, 255, 255, 0.05);
     }
 
-    .card-title-text {
+    .card-title-col {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .card-title-text {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-main);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .chevron-icon {
-      font-size: 10px;
-      transition: transform 0.2s;
-      color: var(--text-muted);
-    }
-
-    .card.expanded .chevron-icon {
-      transform: rotate(180deg);
-    }
-
-    .card-body {
-      display: none;
-      padding: 10px;
-      border-top: 1px solid var(--card-border);
-      background: rgba(0, 0, 0, 0.15);
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .card.expanded .card-body {
-      display: flex;
-    }
-
-    .rationale-text {
-      color: var(--text-main);
-      font-size: 11.5px;
-      line-height: 1.45;
-    }
-
-    /* Citations Section */
-    .citations-section {
-      margin-top: 4px;
-      padding-top: 6px;
-      border-top: 1px dashed var(--card-border);
-    }
-
-    .citations-header {
-      color: var(--accent-blue);
-      font-size: 11px;
-      font-weight: 600;
-      margin-bottom: 6px;
+    .card-meta-row {
       display: flex;
       align-items: center;
-      gap: 4px;
-    }
-
-    .citation-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-      padding: 6px 8px;
-      margin-bottom: 6px;
-    }
-
-    .citation-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pill-lines {
+      font-size: 9.5px;
+      color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 500;
     }
 
     .source-badge {
@@ -406,37 +370,108 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     .badge-stackoverflow { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
     .badge-community { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
 
-    .citation-name {
-      font-size: 10.5px;
-      font-weight: 500;
-      color: var(--text-main);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
+    .card-actions-col {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
     }
 
-    .btn-toggle-excerpt {
-      font-size: 9.5px;
+    .btn-inspect {
+      padding: 2px 6px;
+      font-size: 10px;
+      background: rgba(56, 189, 248, 0.12);
       color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 3px;
       cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0 2px;
-      text-decoration: underline;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
     }
 
-    .excerpt-box {
-      margin-top: 6px;
-      padding: 6px 8px;
+    .btn-inspect:hover {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: var(--accent-blue);
+    }
+
+    .chevron-icon {
+      font-size: 10px;
+      transition: transform 0.2s;
+      color: var(--text-muted);
+      padding: 2px;
+    }
+
+    .card.expanded .chevron-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Inline Collapsible Body (collapsed by default) */
+    .card-body {
+      display: none;
+      padding: 10px;
+      border-top: 1px solid var(--card-border);
+      background: rgba(0, 0, 0, 0.2);
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card.expanded .card-body {
+      display: flex;
+    }
+
+    .rationale-text {
+      color: var(--text-main);
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    /* Citations in Card */
+    .citations-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--card-border);
+    }
+
+    .citations-heading {
+      color: var(--accent-blue);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .citation-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .citation-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .citation-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .excerpt-callout {
       border-left: 2px solid var(--accent-blue);
       background: rgba(0, 0, 0, 0.35);
-      font-family: var(--vscode-editor-font-family, monospace);
-      font-size: 10px;
-      color: #cbd5e1;
-      border-radius: 0 3px 3px 0;
-      white-space: pre-wrap;
-      line-height: 1.4;
+      padding: 6px 8px;
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #e2e8f0;
+      border-radius: 0 4px 4px 0;
     }
 
     .highlight-mark {
@@ -447,25 +482,147 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       font-weight: 600;
     }
 
-    .citation-link-row {
-      margin-top: 4px;
+    .linkout-row {
       display: flex;
-      align-items: center;
       justify-content: flex-end;
     }
 
     .linkout-url {
       color: var(--accent-blue);
-      font-size: 10px;
+      font-size: 10.5px;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       cursor: pointer;
     }
 
     .linkout-url:hover {
       text-decoration: underline;
+    }
+
+    /* Modal Overlay */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: var(--modal-backdrop);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .modal-dialog {
+      background: var(--card-bg);
+      border: 1px solid var(--accent-blue);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-close-modal {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+
+    .btn-close-modal:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .modal-body {
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--accent-blue);
+      margin-bottom: 4px;
+    }
+
+    .modal-rationale-box {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 5px;
+      padding: 10px;
+    }
+
+    .modal-code-block {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--card-border);
+      border-radius: 5px;
+      padding: 10px;
+      font-family: var(--vscode-editor-font-family, monospace);
+      font-size: 11px;
+      color: #93c5fd;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+
+    .modal-citation-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .modal-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+      background: rgba(0, 0, 0, 0.15);
     }
 
     /* Footer Action */
@@ -498,11 +655,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       color: var(--text-muted);
       padding: 20px;
     }
-
-    .empty-icon {
-      font-size: 24px;
-      color: var(--accent-blue);
-    }
   </style>
 </head>
 <body>
@@ -523,14 +675,29 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
 
   <div id="cardsContainer" class="cards-container">
     <div id="emptyState" class="empty-state">
-      <div class="empty-icon">⚡</div>
       <p>No active generation session.<br/>Trigger a generation to stream Playwright code and live citations.</p>
-      <button id="startDemoBtn" class="btn" style="margin-top: 6px; border-color: var(--accent-blue);">▶ Start Playwright Test Demo</button>
+      <button id="startDemoBtn" class="btn" style="margin-top: 6px; border-color: var(--accent-blue);">Start Playwright Test Demo</button>
     </div>
   </div>
 
   <div class="footer-panel">
     <button id="clearBtn" class="btn btn-clear">Clear Current Citations</button>
+  </div>
+
+  <!-- Modal Popup Dialog -->
+  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div id="modalTitle" class="modal-title">Inspection</div>
+        <button id="modalCloseBtn" class="btn-close-modal" title="Close (Esc)">✕</button>
+      </div>
+      <div id="modalBody" class="modal-body">
+        <!-- Injected via JavaScript -->
+      </div>
+      <div class="modal-footer">
+        <button id="modalDoneBtn" class="btn">Close</button>
+      </div>
+    </div>
   </div>
 
   <script nonce="${nonce}">
@@ -544,8 +711,109 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     const cardsContainer = document.getElementById('cardsContainer');
     const emptyState = document.getElementById('emptyState');
 
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalDoneBtn = document.getElementById('modalDoneBtn');
+
     let currentCards = [];
     let isGenerating = false;
+
+    // Modal controls
+    modalCloseBtn.addEventListener('click', closeModal);
+    modalDoneBtn.addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) {
+        closeModal();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalBackdrop.style.display !== 'none') {
+        closeModal();
+      }
+    });
+
+    function openModal(card) {
+      const linesText = card.lineRange ? 'Lines ' + card.lineRange[0] + '-' + card.lineRange[1] : '';
+      modalTitle.innerHTML = \`
+        <span>Step \${card.stepNumber}: \${escapeHtml(card.title)}</span>
+        \${linesText ? '<span class="pill-lines">' + linesText + '</span>' : ''}
+      \`;
+
+      let citationsHtml = '';
+      if (card.citations && card.citations.length > 0) {
+        citationsHtml = card.citations.map((cit) => {
+          const badgeClass = 'badge-' + cit.sourceType;
+          const badgeLabel = cit.sourceType === 'official' ? 'Official Docs' :
+                             cit.sourceType === 'github' ? 'GitHub Issue' :
+                             cit.sourceType === 'stackoverflow' ? 'Stack Overflow' : 'Community';
+
+          let excerpt = escapeHtml(cit.excerpt || '');
+          if (cit.highlight) {
+            const escapedHighlight = escapeHtml(cit.highlight);
+            excerpt = excerpt.replace(escapedHighlight, '<mark class="highlight-mark">' + escapedHighlight + '</mark>');
+          }
+
+          return \`
+            <div class="modal-citation-card">
+              <div class="citation-header-row">
+                <span class="source-badge \${badgeClass}">\${badgeLabel}</span>
+                <span class="citation-name">\${escapeHtml(cit.sourceName || '')}</span>
+              </div>
+              <div class="excerpt-callout">\${excerpt}</div>
+              <div class="linkout-row">
+                <a class="linkout-url" data-url="\${escapeHtml(cit.url || '')}">
+                  <span>\${escapeHtml(cit.url || '')}</span>
+                  <span>↗</span>
+                </a>
+              </div>
+            </div>
+          \`;
+        }).join('');
+      } else {
+        citationsHtml = '<div style="color:var(--text-muted);font-size:11px;">No external citations recorded for this step.</div>';
+      }
+
+      modalBody.innerHTML = \`
+        <div>
+          <div class="modal-section-label">Micro-Decision Rationale</div>
+          <div class="modal-rationale-box">\${escapeHtml(card.rationale || '')}</div>
+        </div>
+
+        \${card.codeSnippet ? \`
+          <div>
+            <div class="modal-section-label">Generated Playwright Code</div>
+            <pre class="modal-code-block">\${escapeHtml(card.codeSnippet)}</pre>
+          </div>
+        \` : ''}
+
+        <div>
+          <div class="modal-section-label">Verified Official Docs & Sources</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            \${citationsHtml}
+          </div>
+        </div>
+      \`;
+
+      // Wire external link clicks in modal
+      modalBody.querySelectorAll('.linkout-url').forEach((link) => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = link.getAttribute('data-url');
+          if (url) {
+            vscode.postMessage({ command: 'openExternal', url });
+          }
+        });
+      });
+
+      modalBackdrop.style.display = 'flex';
+    }
+
+    function closeModal() {
+      modalBackdrop.style.display = 'none';
+    }
 
     cancelBtn.addEventListener('click', () => {
       vscode.postMessage({ command: 'cancelGeneration' });
@@ -589,6 +857,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function handleSessionStart(topic) {
       isGenerating = true;
       currentCards = [];
+      closeModal();
       sessionTitleEl.textContent = 'Active AI Generation: ' + topic;
       statusIndicatorEl.style.display = 'inline-flex';
       cancelBtn.style.display = 'inline-block';
@@ -603,13 +872,13 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       if (statusText) {
         sessionTitleEl.textContent = statusText;
       }
-      // Remove active pulse from cards
       document.querySelectorAll('.card.active').forEach((el) => el.classList.remove('active'));
     }
 
     function handleClear() {
       isGenerating = false;
       currentCards = [];
+      closeModal();
       sessionTitleEl.textContent = 'Active AI Generation: Idle';
       statusIndicatorEl.style.display = 'none';
       cancelBtn.style.display = 'none';
@@ -620,10 +889,10 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
 
     function handleAddCard(card) {
       emptyState.style.display = 'none';
-      // deactivate previous active cards
       document.querySelectorAll('.card.active').forEach((el) => el.classList.remove('active'));
 
       currentCards.push(card);
+      // Collapsed by default (card.isExpanded is false)
       const cardEl = renderCardElement(card, true);
       cardsContainer.appendChild(cardEl);
       cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -644,43 +913,74 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
     function renderCardElement(card, isActive) {
       const cardDiv = document.createElement('div');
       cardDiv.id = 'card-' + card.id;
-      cardDiv.className = 'card' + (isActive ? ' active' : '') + ' expanded';
+      // ONLY expand if card.isExpanded === true (default is false)
+      cardDiv.className = 'card' + (isActive ? ' active' : '') + (card.isExpanded ? ' expanded' : '');
 
-      const linesText = card.lineRange ? ' (Lines ' + card.lineRange[0] + '-' + card.lineRange[1] + ')' : '';
-      const headerTitle = card.stepNumber + '. ' + card.title + linesText;
+      const linesText = card.lineRange ? 'Lines ' + card.lineRange[0] + '-' + card.lineRange[1] : '';
+      const headerTitle = card.stepNumber + '. ' + card.title;
+
+      // Source badges preview
+      let sourceBadgesHtml = '';
+      if (card.citations && card.citations.length > 0) {
+        sourceBadgesHtml = card.citations.map((c) => {
+          const badgeClass = 'badge-' + c.sourceType;
+          const label = c.sourceType === 'official' ? 'Docs' :
+                        c.sourceType === 'github' ? 'GitHub' :
+                        c.sourceType === 'stackoverflow' ? 'SO' : 'Community';
+          return \`<span class="source-badge \${badgeClass}">\${label}</span>\`;
+        }).join('');
+      }
 
       cardDiv.innerHTML = \`
         <div class="card-header">
-          <div class="card-title-text">\${escapeHtml(headerTitle)}</div>
-          <span class="chevron-icon">▼</span>
+          <div class="card-title-col">
+            <div class="card-title-text">\${escapeHtml(headerTitle)}</div>
+            <div class="card-meta-row">
+              \${linesText ? '<span class="pill-lines">' + linesText + '</span>' : ''}
+              \${sourceBadgesHtml}
+            </div>
+          </div>
+          <div class="card-actions-col">
+            <button class="btn-inspect" title="Open detailed inspection modal">Inspect ↗</button>
+            <span class="chevron-icon">▼</span>
+          </div>
         </div>
         <div class="card-body">
-          <div class="rationale-text">\${escapeHtml(card.rationale)}</div>
+          <div class="rationale-text">\${escapeHtml(card.rationale || '')}</div>
           <div class="citations-section">
-            <div class="citations-header">Official Docs & Sources:</div>
+            <div class="citations-heading">Official Docs & Sources:</div>
             <div class="citations-list"></div>
           </div>
         </div>
       \`;
 
+      // Header click: open modal when clicking inspect or title, or toggle inline accordion
+      const inspectBtn = cardDiv.querySelector('.btn-inspect');
+      inspectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModal(card);
+      });
+
       const header = cardDiv.querySelector('.card-header');
-      header.addEventListener('click', () => {
+      header.addEventListener('click', (e) => {
+        // Toggle inline expansion on header click
         cardDiv.classList.toggle('expanded');
       });
 
+      // Populate inline citations if any
       const citationsList = cardDiv.querySelector('.citations-list');
       if (card.citations && card.citations.length > 0) {
         card.citations.forEach((cit) => {
-          citationsList.appendChild(renderCitationItem(cit));
+          citationsList.appendChild(renderInlineCitationItem(cit));
         });
       } else {
-        citationsList.innerHTML = '<span style="color:var(--text-muted);font-size:10px;">No external citations required.</span>';
+        citationsList.innerHTML = '<span style="color:var(--text-muted);font-size:10px;">No external citations.</span>';
       }
 
       return cardDiv;
     }
 
-    function renderCitationItem(cit) {
+    function renderInlineCitationItem(cit) {
       const item = document.createElement('div');
       item.className = 'citation-item';
 
@@ -689,7 +989,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
                          cit.sourceType === 'github' ? 'GitHub' :
                          cit.sourceType === 'stackoverflow' ? 'Stack Overflow' : 'Community';
 
-      let formattedExcerpt = escapeHtml(cit.excerpt);
+      let formattedExcerpt = escapeHtml(cit.excerpt || '');
       if (cit.highlight) {
         const escapedHighlight = escapeHtml(cit.highlight);
         formattedExcerpt = formattedExcerpt.replace(
@@ -699,28 +999,18 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
       }
 
       item.innerHTML = \`
-        <div class="citation-title-row">
+        <div class="citation-header-row">
           <span class="source-badge \${badgeClass}">\${badgeLabel}</span>
-          <span class="citation-name" title="\${escapeHtml(cit.sourceName)}">\${escapeHtml(cit.sourceName)}</span>
-          <button class="btn-toggle-excerpt">expand</button>
+          <span class="citation-name">\${escapeHtml(cit.sourceName || '')}</span>
         </div>
-        <div class="excerpt-box" style="display: none;">\${formattedExcerpt}</div>
-        <div class="citation-link-row">
-          <a class="linkout-url" title="\${escapeHtml(cit.url)}">
-            <span>\${escapeHtml(cit.url.replace(/^https?:\\/\\//, '').slice(0, 36))}...</span>
+        <div class="excerpt-callout">\${formattedExcerpt}</div>
+        <div class="linkout-row">
+          <a class="linkout-url">
+            <span>\${escapeHtml((cit.url || '').replace(/^https?:\\/\\//, '').slice(0, 36))}...</span>
             <span>↗</span>
           </a>
         </div>
       \`;
-
-      const toggleBtn = item.querySelector('.btn-toggle-excerpt');
-      const excerptBox = item.querySelector('.excerpt-box');
-      toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = excerptBox.style.display === 'none';
-        excerptBox.style.display = isHidden ? 'block' : 'none';
-        toggleBtn.textContent = isHidden ? 'collapse' : 'expand';
-      });
 
       const linkout = item.querySelector('.linkout-url');
       linkout.addEventListener('click', (e) => {
@@ -734,7 +1024,7 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
 
     function escapeHtml(text) {
       if (!text) return '';
-      return text
+      return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -742,7 +1032,6 @@ export class ClearCodeViewProvider implements vscode.WebviewViewProvider {
         .replace(/'/g, '&#039;');
     }
 
-    // Notify extension host that webview is ready
     vscode.postMessage({ command: 'webviewReady' });
   </script>
 </body>

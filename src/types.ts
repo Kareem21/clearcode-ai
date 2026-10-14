@@ -15,6 +15,7 @@ export interface MicroDecisionCard {
   title: string;
   lineRange: [number, number]; // e.g. [12, 15]
   rationale: string;
+  codeSnippet?: string;
   citations: Citation[];
   isExpanded?: boolean;
 }
